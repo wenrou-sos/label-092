@@ -29,6 +29,13 @@
             <el-option label="已下架" :value="false" />
           </el-select>
         </el-form-item>
+        <el-form-item label="库存状态">
+          <el-select v-model="filterForm.stockStatus" placeholder="全部库存" clearable @change="handleFilter">
+            <el-option label="正常" value="normal" />
+            <el-option label="偏低" value="low" />
+            <el-option label="缺货" value="out_of_stock" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="搜索">
           <el-input
             v-model="filterForm.keyword"
@@ -77,7 +84,7 @@
         <el-table-column prop="harvestYear" label="年份" width="80" align="center" />
         <el-table-column prop="reviewScore" label="审评得分" width="100" align="center">
           <template #default="{ row }">
-            <span class="score-text">{{ row.reviewScore.toFixed(1) }}</span>
+            <span class="score-text">{{ Number(row.reviewScore).toFixed(1) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="价格" width="180">
@@ -85,20 +92,42 @@
             <div class="price-info">
               <div class="price-item">
                 <span class="price-label">散茶</span>
-                <span class="price-value">¥{{ row.pricePer100g.toFixed(2) }}/100g</span>
+                <span class="price-value">¥{{ Number(row.pricePer100g).toFixed(2) }}/100g</span>
               </div>
               <div v-if="row.boxPrice" class="price-item">
                 <span class="price-label">盒装</span>
-                <span class="price-value">¥{{ row.boxPrice.toFixed(2) }}</span>
+                <span class="price-value">¥{{ Number(row.boxPrice).toFixed(2) }}</span>
               </div>
               <div v-if="row.giftBoxPrice" class="price-item">
                 <span class="price-label">礼盒</span>
-                <span class="price-value">¥{{ row.giftBoxPrice.toFixed(2) }}</span>
+                <span class="price-value">¥{{ Number(row.giftBoxPrice).toFixed(2) }}</span>
               </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="stock" label="库存" width="80" align="center" />
+        <el-table-column label="库存" width="160" align="center">
+          <template #default="{ row }">
+            <div class="stock-cell">
+              <span
+                class="stock-number"
+                :class="{
+                  'text-danger': getStockStatus(Number(row.stock)) === 'out_of_stock',
+                  'text-warning': getStockStatus(Number(row.stock)) === 'low',
+                }"
+              >
+                {{ formatStockDisplay(Number(row.stock)) }}
+              </span>
+              <el-tag
+                :type="StockStatusTypeMap[getStockStatus(Number(row.stock))]"
+                size="small"
+                effect="light"
+                class="stock-tag"
+              >
+                {{ StockStatusMap[getStockStatus(Number(row.stock))] }}
+              </el-tag>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-switch
@@ -304,7 +333,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox, type FormInstance, type UploadRequestOptions } from 'element-plus';
 import {
   Goods,
@@ -323,7 +353,17 @@ import {
   updateProductStatus,
 } from '@/api/product';
 import { uploadImage } from '@/api/admin';
-import { TeaCategoryMap, type Product, type TeaCategory } from '@/types';
+import {
+  TeaCategoryMap,
+  type Product,
+  type TeaCategory,
+  StockStatusMap,
+  StockStatusTypeMap,
+  getStockStatus,
+  formatStockDisplay,
+  STOCK_LOW_THRESHOLD,
+  type StockStatus,
+} from '@/types';
 
 const loading = ref(false);
 const submitting = ref(false);
@@ -334,11 +374,13 @@ const pageSize = ref(10);
 const productDialogVisible = ref(false);
 const isEdit = ref(false);
 const productFormRef = ref<FormInstance>();
+const route = useRoute();
 
 const filterForm = reactive({
   category: '' as TeaCategory | '',
   isActive: '' as boolean | '',
   keyword: '',
+  stockStatus: '' as StockStatus | '',
 });
 
 const productForm = reactive<Partial<Product>>({
@@ -380,8 +422,23 @@ const fetchProducts = async () => {
       category: filterForm.category || undefined,
       isActive: filterForm.isActive === '' ? undefined : filterForm.isActive,
     };
+    if (filterForm.stockStatus === 'low') {
+      params.maxStock = STOCK_LOW_THRESHOLD;
+      params.minStock = 1;
+    } else if (filterForm.stockStatus === 'out_of_stock') {
+      params.maxStock = 1;
+    } else if (filterForm.stockStatus === 'normal') {
+      params.minStock = STOCK_LOW_THRESHOLD;
+    }
     const res = await getProducts(params);
-    products.value = res.data;
+    products.value = (res.data || []).map((p) => ({
+      ...p,
+      reviewScore: Number(p.reviewScore),
+      pricePer100g: Number(p.pricePer100g),
+      boxPrice: p.boxPrice ? Number(p.boxPrice) : null,
+      giftBoxPrice: p.giftBoxPrice ? Number(p.giftBoxPrice) : null,
+      stock: Number(p.stock),
+    }));
     total.value = res.total || 0;
   } catch (error) {
     ElMessage.error('获取商品列表失败');
@@ -405,6 +462,7 @@ const handleReset = () => {
   filterForm.category = '';
   filterForm.isActive = '';
   filterForm.keyword = '';
+  filterForm.stockStatus = '';
   currentPage.value = 1;
   fetchProducts();
 };
@@ -517,6 +575,9 @@ const handleDialogClosed = () => {
 };
 
 onMounted(() => {
+  if (route.query.stockFilter === 'low') {
+    filterForm.stockStatus = 'low';
+  }
   fetchProducts();
 });
 </script>
@@ -585,6 +646,31 @@ onMounted(() => {
 .price-value {
   color: #c9a227;
   font-weight: 600;
+}
+
+.stock-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stock-number {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.text-danger {
+  color: #f56c6c !important;
+}
+
+.text-warning {
+  color: #e6a23c !important;
+}
+
+.stock-tag {
+  flex-shrink: 0;
 }
 
 .pagination-wrapper {

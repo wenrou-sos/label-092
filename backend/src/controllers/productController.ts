@@ -2,18 +2,20 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../db/data-source';
 import { Product, TeaCategory } from '../entities/Product';
 import { Review } from '../entities/Review';
-import { ILike } from 'typeorm';
+import { ILike, LessThan, MoreThanOrEqual, Between } from 'typeorm';
 
 const productRepository = AppDataSource.getRepository(Product);
 const reviewRepository = AppDataSource.getRepository(Review);
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { category, keyword, page = 1, pageSize = 12, isActive } = req.query;
+    const { category, keyword, page = 1, pageSize = 12, isActive, maxStock, minStock } = req.query;
     const where: any = {};
 
-    if (isActive !== undefined && isActive !== '') {
+    if (isActive !== undefined && isActive !== '' && String(isActive) !== 'all') {
       where.isActive = String(isActive) === 'true';
+    } else if (String(isActive) === 'all') {
+      // 不传或传 all 不过滤 isActive
     } else {
       where.isActive = true;
     }
@@ -24,6 +26,14 @@ export const getProducts = async (req: Request, res: Response) => {
 
     if (keyword) {
       where.name = ILike(`%${keyword}%`);
+    }
+
+    if (maxStock !== undefined && maxStock !== '' && minStock !== undefined && minStock !== '') {
+      where.stock = Between(Number(minStock), Number(maxStock) - 1);
+    } else if (maxStock !== undefined && maxStock !== '') {
+      where.stock = LessThan(Number(maxStock));
+    } else if (minStock !== undefined && minStock !== '') {
+      where.stock = MoreThanOrEqual(Number(minStock));
     }
 
     const [products, total] = await productRepository.findAndCount({

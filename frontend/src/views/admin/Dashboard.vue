@@ -65,7 +65,13 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ stats.totalProducts }}</div>
-              <div class="stat-label">商品总数</div>
+              <div class="stat-label">
+                商品总数
+                <span v-if="stats.lowStockCount > 0" class="low-stock-badge">
+                  <el-icon><Warning /></el-icon>
+                  {{ stats.lowStockCount }} 款库存低
+                </span>
+              </div>
               <div class="stat-trend down">
                 <el-icon><ArrowDown /></el-icon>
                 <span>1.1%</span>
@@ -140,6 +146,71 @@
     </el-row>
 
     <el-row :gutter="20" class="charts-row">
+      <el-col :lg="24" :md="24" :sm="24" :xs="24">
+        <el-card class="chart-card card-shadow low-stock-card-wrapper">
+          <template #header>
+            <div class="card-header">
+              <div class="card-title-with-icon">
+                <el-icon :size="18" color="#f56c6c"><Warning /></el-icon>
+                <span class="card-title">低库存预警</span>
+                <el-tag type="danger" size="small" effect="dark" class="danger-tag">
+                  库存 < 10kg 需补货
+                </el-tag>
+              </div>
+              <el-button type="primary" link @click="gotoLowStockProducts">
+                查看全部 <el-icon><ArrowRight /></el-icon>
+              </el-button>
+            </div>
+          </template>
+          <div v-if="lowStockLoading" class="loading-placeholder">
+            <el-skeleton :rows="4" animated />
+          </div>
+          <div v-else-if="lowStockProducts.length === 0" class="empty-state">
+            <el-icon :size="48" color="#67c23a"><CircleCheck /></el-icon>
+            <p class="empty-text">所有商品库存充足，暂无补货需求</p>
+          </div>
+          <div v-else class="low-stock-list">
+            <div
+              v-for="item in lowStockProducts"
+              :key="item.id"
+              class="low-stock-item"
+              :class="{ 'is-out': item.stock <= 0 }"
+            >
+              <div class="stock-status-col">
+                <el-tag
+                  :type="item.stock <= 0 ? 'danger' : 'warning'"
+                  size="small"
+                  effect="dark"
+                  round
+                >
+                  {{ item.stock <= 0 ? '缺货' : '偏低' }}
+                </el-tag>
+              </div>
+              <div class="stock-product-col">
+                <div class="product-name text-ellipsis">{{ item.name }}</div>
+                <div class="product-meta">
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ TeaCategoryMap[item.category] }}
+                  </el-tag>
+                  <span class="meta-year">{{ item.harvestYear }}年</span>
+                </div>
+              </div>
+              <div class="stock-num-col" :class="{ 'text-danger': item.stock <= 0 }">
+                <span class="stock-num">{{ formatStockDisplay(item.stock) }}</span>
+              </div>
+              <div class="stock-actions-col">
+                <el-button size="small" type="primary" link @click="editProduct(item)">
+                  <el-icon><Edit /></el-icon>
+                  进货
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="20" class="charts-row">
       <el-col :lg="12" :md="24" :sm="24" :xs="24">
         <el-card class="chart-card card-shadow">
           <template #header>
@@ -184,6 +255,9 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowRight,
+  Warning,
+  CircleCheck,
+  Edit,
 } from '@element-plus/icons-vue';
 import VChart from 'vue-echarts';
 import { use } from 'echarts/core';
@@ -196,6 +270,14 @@ import {
   GridComponent,
   DatasetComponent,
 } from 'echarts/components';
+import { getProducts } from '@/api/product';
+import {
+  TeaCategoryMap,
+  STOCK_LOW_THRESHOLD,
+  formatStockDisplay,
+  type Product,
+  type TeaCategory,
+} from '@/types';
 
 use([
   CanvasRenderer,
@@ -218,7 +300,11 @@ const stats = reactive({
   todaySales: 28560.5,
   totalMembers: 3256,
   totalProducts: 186,
+  lowStockCount: 0,
 });
+
+const lowStockProducts = ref<Product[]>([]);
+const lowStockLoading = ref(false);
 
 const recentOrders = ref([
   {
@@ -455,11 +541,39 @@ const viewAllOrders = () => {
   router.push('/admin/orders');
 };
 
+const fetchLowStockProducts = async () => {
+  lowStockLoading.value = true;
+  try {
+    const res = await getProducts({
+      maxStock: STOCK_LOW_THRESHOLD,
+      pageSize: 100,
+      isActive: 'all',
+    });
+    lowStockProducts.value = (res.data || [])
+      .map((p) => ({ ...p, stock: Number(p.stock) }))
+      .sort((a, b) => a.stock - b.stock);
+    stats.lowStockCount = lowStockProducts.value.length;
+  } catch (e) {
+    ElMessage.error('获取低库存商品失败');
+  } finally {
+    lowStockLoading.value = false;
+  }
+};
+
+const gotoLowStockProducts = () => {
+  router.push({ path: '/admin/products', query: { stockFilter: 'low' } });
+};
+
+const editProduct = (product: Product) => {
+  router.push({ path: '/admin/products', query: { editId: String(product.id) } });
+};
+
 onMounted(() => {
   loading.value = true;
   setTimeout(() => {
     loading.value = false;
   }, 500);
+  fetchLowStockProducts();
 });
 </script>
 
@@ -680,6 +794,140 @@ onMounted(() => {
   margin-left: 12px;
 }
 
+.stat-label {
+  display: flex;
+  flex-direction: column;
+}
+
+.low-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #f56c6c;
+  font-weight: 500;
+  background: rgba(245, 108, 108, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.text-danger {
+  color: #f56c6c !important;
+}
+
+.card-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.danger-tag {
+  margin-left: 8px;
+}
+
+.low-stock-card-wrapper {
+  border: 1px solid rgba(245, 108, 108, 0.25);
+}
+
+.low-stock-card-wrapper :deep(.el-card__header) {
+  background: linear-gradient(90deg, rgba(245, 108, 108, 0.08) 0%, rgba(245, 108, 108, 0.02) 100%);
+  border-bottom: 1px solid rgba(245, 108, 108, 0.15);
+}
+
+.loading-placeholder {
+  padding: 10px 0;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+  color: #999;
+}
+
+.empty-text {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #67c23a;
+}
+
+.low-stock-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.low-stock-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 120px 90px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background-color 0.2s ease;
+}
+
+.low-stock-item:last-child {
+  border-bottom: none;
+}
+
+.low-stock-item:hover {
+  background-color: #fff8f8;
+}
+
+.low-stock-item.is-out {
+  background-color: rgba(245, 108, 108, 0.04);
+}
+
+.stock-status-col {
+  display: flex;
+  justify-content: center;
+}
+
+.stock-product-col {
+  min-width: 0;
+}
+
+.product-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.product-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.meta-year {
+  font-size: 12px;
+  color: #999;
+}
+
+.stock-num-col {
+  text-align: right;
+  font-weight: 700;
+  font-size: 18px;
+  color: #e6a23c;
+}
+
+.stock-num-col.text-danger {
+  color: #f56c6c !important;
+}
+
+.stock-num {
+  font-size: 18px;
+}
+
+.stock-actions-col {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 768px) {
   .stat-value {
     font-size: 22px;
@@ -692,6 +940,17 @@ onMounted(() => {
 
   .chart-container {
     height: 260px;
+  }
+
+  .low-stock-item {
+    grid-template-columns: 70px 1fr 90px;
+    grid-template-rows: auto auto;
+    row-gap: 8px;
+  }
+
+  .stock-actions-col {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }
 </style>

@@ -9,6 +9,34 @@ export const TeaCategoryMap: Record<TeaCategory, string> = {
   yellow: '黄茶',
 };
 
+export type StockStatus = 'normal' | 'low' | 'out_of_stock';
+
+export const STOCK_LOW_THRESHOLD = 10000;
+export const STOCK_OUT_THRESHOLD = 0;
+
+export const StockStatusMap: Record<StockStatus, string> = {
+  normal: '正常',
+  low: '偏低',
+  out_of_stock: '缺货',
+};
+
+export const StockStatusTypeMap: Record<StockStatus, 'success' | 'warning' | 'danger'> = {
+  normal: 'success',
+  low: 'warning',
+  out_of_stock: 'danger',
+};
+
+export const getStockStatus = (stock: number): StockStatus => {
+  if (stock <= STOCK_OUT_THRESHOLD) return 'out_of_stock';
+  if (stock < STOCK_LOW_THRESHOLD) return 'low';
+  return 'normal';
+};
+
+export const formatStockDisplay = (stock: number): string => {
+  if (stock >= 1000) return `${(stock / 1000).toFixed(1)}kg`;
+  return `${stock}g`;
+};
+
 export interface Product {
   id: number;
   name: string;

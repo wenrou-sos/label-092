@@ -6,6 +6,9 @@ export const getProducts = (params: {
   keyword?: string;
   page?: number;
   pageSize?: number;
+  isActive?: boolean | 'all' | '';
+  maxStock?: number;
+  minStock?: number;
 }) => {
   return request.get<any, ApiResponse<Product[]>>('/products', { params });
 };
