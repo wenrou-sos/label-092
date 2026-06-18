@@ -16,21 +16,17 @@ export class Member {
   @Column({ length: 100 })
   name: string;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   password: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: ['normal', 'silver', 'gold', 'diamond'],
-    default: 'normal',
-  })
+  @Column({ type: 'varchar', length: 20, default: 'normal' })
   level: MemberLevel;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalSpent: number;
 
   @Column({ type: 'date', nullable: true })
-  birthday: Date | null;
+  birthday: Date;
 
   @Column({ type: 'boolean', default: false })
   birthdayGiftSent: boolean;
@@ -52,25 +48,20 @@ export class Member {
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  getDiscount(): number {
-    switch (this.level) {
-      case 'silver': return 0.9;
-      case 'gold': return 0.85;
-      case 'diamond': return 0.8;
-      default: return 1;
-    }
-  }
-
-  updateLevel(): void {
-    if (this.totalSpent >= 10000) {
-      this.level = 'diamond';
-    } else if (this.totalSpent >= 5000) {
-      this.level = 'gold';
-    } else if (this.totalSpent >= 1000) {
-      this.level = 'silver';
-    } else {
-      this.level = 'normal';
-    }
-  }
 }
+
+export const getMemberDiscount = (level: MemberLevel): number => {
+  switch (level) {
+    case 'silver': return 0.9;
+    case 'gold': return 0.85;
+    case 'diamond': return 0.8;
+    default: return 1;
+  }
+};
+
+export const calcMemberLevel = (totalSpent: number): MemberLevel => {
+  if (totalSpent >= 10000) return 'diamond';
+  if (totalSpent >= 5000) return 'gold';
+  if (totalSpent >= 1000) return 'silver';
+  return 'normal';
+};

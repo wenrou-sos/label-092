@@ -24,11 +24,7 @@ export class Order {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   actualAmount: number;
 
-  @Column({
-    type: 'enum',
-    enum: ['pending', 'paid', 'shipped', 'completed', 'cancelled'],
-    default: 'pending',
-  })
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
   status: OrderStatus;
 
   @Column({ type: 'varchar', length: 500 })
@@ -43,13 +39,13 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   remark: string;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   paidAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   shippedAt: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
   @ManyToOne(() => Member, member => member.orders)

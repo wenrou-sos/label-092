@@ -15,11 +15,7 @@ export class OrderItem {
   @Column()
   productId: number;
 
-  @Column({
-    type: 'enum',
-    enum: ['loose', 'box', 'giftbox'],
-    default: 'loose',
-  })
+  @Column({ type: 'varchar', length: 20, default: 'loose' })
   packageType: PackageType;
 
   @Column({ type: 'int', default: 100 })

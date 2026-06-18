@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../db/data-source';
-import { Member } from '../entities/Member';
+import { Member, getMemberDiscount } from '../entities/Member';
 import { AuthRequest, generateToken } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
 
@@ -105,7 +105,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       points: member.points,
       birthday: member.birthday,
       birthdayGiftSent: member.birthdayGiftSent,
-      discount: member.getDiscount(),
+      discount: getMemberDiscount(member.level),
       nextLevel: getNextLevel(member.totalSpent),
     });
   } catch (error) {

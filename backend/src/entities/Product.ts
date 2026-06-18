@@ -11,10 +11,7 @@ export class Product {
   @Column({ length: 100 })
   name: string;
 
-  @Column({
-    type: 'enum',
-    enum: ['green', 'black', 'oolong', 'white', 'dark', 'yellow'],
-  })
+  @Column({ type: 'varchar', length: 20 })
   category: TeaCategory;
 
   @Column({ type: 'text', nullable: true })

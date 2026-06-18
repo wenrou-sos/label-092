@@ -14,7 +14,7 @@ export class TastingEvent {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column({ type: 'datetime' })
+  @Column({ type: 'timestamp' })
   eventDate: Date;
 
   @Column({ length: 200 })
@@ -26,11 +26,7 @@ export class TastingEvent {
   @Column({ type: 'int', default: 0 })
   currentParticipants: number;
 
-  @Column({
-    type: 'enum',
-    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
-    default: 'upcoming',
-  })
+  @Column({ type: 'varchar', length: 20, default: 'upcoming' })
   status: TastingStatus;
 
   @Column({ type: 'varchar', length: 255, nullable: true })

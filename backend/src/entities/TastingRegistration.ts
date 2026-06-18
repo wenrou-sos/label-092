@@ -18,11 +18,7 @@ export class TastingRegistration {
   @Column({ type: 'int', default: 1 })
   guestsCount: number;
 
-  @Column({
-    type: 'enum',
-    enum: ['pending', 'confirmed', 'cancelled', 'attended'],
-    default: 'pending',
-  })
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
   status: RegistrationStatus;
 
   @Column({ type: 'text', nullable: true })

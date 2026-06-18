@@ -3,7 +3,7 @@ import { AppDataSource } from '../db/data-source';
 import { Order, OrderStatus } from '../entities/Order';
 import { OrderItem, PackageType } from '../entities/OrderItem';
 import { Product } from '../entities/Product';
-import { Member } from '../entities/Member';
+import { Member, getMemberDiscount, calcMemberLevel } from '../entities/Member';
 import { AuthRequest } from '../middleware/auth';
 
 const orderRepository = AppDataSource.getRepository(Order);
@@ -64,7 +64,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       await queryRunner.manager.save(product);
     }
 
-    const discount = member.getDiscount();
+    const discount = getMemberDiscount(member.level);
     const discountAmount = totalAmount * (1 - discount);
     const actualAmount = totalAmount - discountAmount;
 
@@ -87,7 +87,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
     member.totalSpent = Number(member.totalSpent) + actualAmount;
     member.points = member.points + Math.floor(actualAmount);
-    member.updateLevel();
+    member.level = calcMemberLevel(member.totalSpent);
     await queryRunner.manager.save(member);
 
     await queryRunner.commitTransaction();
