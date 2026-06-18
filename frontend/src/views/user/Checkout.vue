@@ -43,7 +43,7 @@
             订单商品
           </div>
           <div class="goods-list">
-            <div v-for="item in checkoutItems" :key="`${item.productId}-${item.packageType}`" class="goods-item">
+            <div v-for="item in checkoutItems" :key="item.packageType === 'loose' ? `${item.productId}-${item.packageType}-${item.weight}` : `${item.productId}-${item.packageType}`" class="goods-item">
               <div class="goods-image">
                 <img :src="item.productImage || defaultImage" :alt="item.productName" />
               </div>
@@ -212,7 +212,10 @@ const loadCheckoutItems = () => {
   }
   const checkoutKeys: string[] = JSON.parse(checkoutKeysStr);
   checkoutItems.value = userStore.cart.filter((item) => {
-    const key = `${item.productId}-${item.packageType}`;
+    const key =
+      item.packageType === 'loose'
+        ? `${item.productId}-${item.packageType}-${item.weight}`
+        : `${item.productId}-${item.packageType}`;
     return checkoutKeys.includes(key);
   });
   if (checkoutItems.value.length === 0) {
@@ -283,7 +286,11 @@ const handleSubmitOrder = async () => {
     orderResult.value = { orderId: res.orderId, orderNo: res.orderNo };
 
     checkoutItems.value.forEach((item) => {
-      userStore.removeFromCart(item.productId, item.packageType);
+      const key =
+        item.packageType === 'loose'
+          ? `${item.productId}-${item.packageType}-${item.weight}`
+          : `${item.productId}-${item.packageType}`;
+      userStore.removeFromCart(key);
     });
 
     sessionStorage.removeItem('checkoutItems');
@@ -304,7 +311,7 @@ const handlePay = async () => {
     const res = await payOrder(orderResult.value.orderId);
     ElMessage.success('支付成功！');
     setTimeout(() => {
-      router.push('/member?tab=orders');
+      router.push('/member/orders');
     }, 1500);
   } catch (error: any) {
     ElMessage.error(error.message || '支付失败，请重试');
@@ -318,7 +325,7 @@ const goToCart = () => {
 };
 
 const goToOrders = () => {
-  router.push('/member?tab=orders');
+  router.push('/member/orders');
 };
 
 const goShopping = () => {

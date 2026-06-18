@@ -151,7 +151,10 @@ const isAllSelected = computed({
   },
 });
 
-const getItemKey = (item: CartItem) => `${item.productId}-${item.packageType}`;
+const getItemKey = (item: CartItem) =>
+  item.packageType === 'loose'
+    ? `${item.productId}-${item.packageType}-${item.weight}`
+    : `${item.productId}-${item.packageType}`;
 
 const isSelected = (item: CartItem) => selectedItems.value.has(getItemKey(item));
 
@@ -203,7 +206,7 @@ const getPackageTagType = (type: PackageType) => {
 };
 
 const handleQuantityChange = (item: CartItem, quantity: number) => {
-  userStore.updateCartItem(item.productId, item.packageType, quantity);
+  userStore.updateCartItem(getItemKey(item), quantity);
 };
 
 const handleDelete = (item: CartItem) => {
@@ -213,7 +216,7 @@ const handleDelete = (item: CartItem) => {
     type: 'warning',
   })
     .then(() => {
-      userStore.removeFromCart(item.productId, item.packageType);
+      userStore.removeFromCart(getItemKey(item));
       selectedItems.value.delete(getItemKey(item));
       ElMessage.success('已删除');
     })
@@ -229,7 +232,7 @@ const handleDeleteSelected = () => {
   })
     .then(() => {
       selectedItemsList.value.forEach((item) => {
-        userStore.removeFromCart(item.productId, item.packageType);
+        userStore.removeFromCart(getItemKey(item));
       });
       selectedItems.value.clear();
       ElMessage.success('已删除');

@@ -59,10 +59,14 @@ export const useUserStore = defineStore('user', () => {
     ElMessage.success('已退出登录');
   };
 
+  const cartItemKey = (c: CartItem) =>
+    c.packageType === 'loose'
+      ? `${c.productId}-${c.packageType}-${c.weight}`
+      : `${c.productId}-${c.packageType}`;
+
   const addToCart = (item: CartItem) => {
-    const existing = cart.value.find(
-      (c) => c.productId === item.productId && c.packageType === item.packageType
-    );
+    const itemKey = cartItemKey(item);
+    const existing = cart.value.find((c) => cartItemKey(c) === itemKey);
     if (existing) {
       existing.quantity += item.quantity;
     } else {
@@ -72,20 +76,16 @@ export const useUserStore = defineStore('user', () => {
     ElMessage.success('已加入购物车');
   };
 
-  const updateCartItem = (productId: number, packageType: PackageType, quantity: number) => {
-    const item = cart.value.find(
-      (c) => c.productId === productId && c.packageType === packageType
-    );
+  const updateCartItem = (key: string, quantity: number) => {
+    const item = cart.value.find((c) => cartItemKey(c) === key);
     if (item) {
       item.quantity = Math.max(1, quantity);
       saveCart();
     }
   };
 
-  const removeFromCart = (productId: number, packageType: PackageType) => {
-    const index = cart.value.findIndex(
-      (c) => c.productId === productId && c.packageType === packageType
-    );
+  const removeFromCart = (key: string) => {
+    const index = cart.value.findIndex((c) => cartItemKey(c) === key);
     if (index > -1) {
       cart.value.splice(index, 1);
       saveCart();
@@ -124,5 +124,6 @@ export const useUserStore = defineStore('user', () => {
     removeFromCart,
     clearCart,
     initFromStorage,
+    cartItemKey,
   };
 });

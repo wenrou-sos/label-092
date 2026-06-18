@@ -38,20 +38,23 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         throw new Error(`商品 ${product.name} 库存不足`);
       }
 
-      let unitPrice = product.pricePer100g;
+      const weight = (item.weight || 100) as number;
+      let unitPrice: number;
       if (item.packageType === 'box' && product.boxPrice) {
         unitPrice = product.boxPrice;
       } else if (item.packageType === 'giftbox' && product.giftBoxPrice) {
         unitPrice = product.giftBoxPrice;
+      } else {
+        unitPrice = Number((product.pricePer100g * weight / 100).toFixed(2));
       }
 
-      const subtotal = unitPrice * item.quantity;
-      totalAmount += subtotal;
+      const subtotal = Number((unitPrice * item.quantity).toFixed(2));
+      totalAmount = Number((totalAmount + subtotal).toFixed(2));
 
       const orderItem = new OrderItem();
       orderItem.productId = item.productId;
       orderItem.packageType = item.packageType as PackageType;
-      orderItem.weight = item.weight || 100;
+      orderItem.weight = weight;
       orderItem.quantity = item.quantity;
       orderItem.unitPrice = unitPrice;
       orderItem.subtotal = subtotal;
