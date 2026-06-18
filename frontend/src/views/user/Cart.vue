@@ -29,7 +29,7 @@
         <div class="cart-list">
           <div
             v-for="item in userStore.cart"
-            :key="`${item.productId}-${item.packageType}`"
+            :key="getItemKey(item)"
             class="cart-item card-shadow"
           >
             <div class="item-checkbox">
@@ -76,13 +76,13 @@
         <div class="cart-footer card-shadow">
           <div class="footer-left">
             <el-checkbox v-model="isAllSelected" @change="handleSelectAll">全选</el-checkbox>
-            <el-button type="text" @click="handleDeleteSelected" :disabled="selectedItems.length === 0">
+            <el-button type="text" @click="handleDeleteSelected" :disabled="selectedCount === 0">
               删除选中
             </el-button>
           </div>
           <div class="footer-right">
             <div class="footer-info">
-              <span>已选 <strong class="highlight">{{ selectedItems.length }}</strong> 件商品</span>
+              <span>已选 <strong class="highlight">{{ selectedCount }}</strong> 件商品</span>
               <span v-if="userStore.userInfo && userStore.userInfo.discount < 1" class="discount-info">
                 会员折扣：<strong class="highlight">{{ (userStore.userInfo.discount * 10).toFixed(1) }}折</strong>
               </span>
@@ -101,7 +101,7 @@
               type="primary"
               size="large"
               class="checkout-btn"
-              :disabled="selectedItems.length === 0"
+              :disabled="selectedCount === 0"
               @click="handleCheckout"
             >
               去结算
@@ -137,6 +137,8 @@ const userStore = useUserStore();
 const defaultImage = 'https://via.placeholder.com/80x80?text=%E8%8C%B6%E5%8F%B6';
 
 const selectedItems = ref<Set<string>>(new Set());
+
+const selectedCount = computed(() => selectedItems.value.size);
 
 const isAllSelected = computed({
   get: () => userStore.cart.length > 0 && selectedItems.value.size === userStore.cart.length,
